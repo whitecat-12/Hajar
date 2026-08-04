@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>AR 9 Planet</title>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+                "mindar-image-three": "https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js"
+            }
+        }
+    </script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        html,
+        body {
+            height: 100%;
+            overflow: hidden;
+            background: #ffffff;
+            font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+        }
+
+        #container {
+            position: fixed;
+            inset: 0;
+            display: none;
+            background: #000;
+            overflow: hidden;
+        }
+        #container video,
+        #container canvas {
+            position: absolute;
+        }
+
+        /* Overlay putih solid, tanpa teks apapun */
+        #overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: #ffffff;
+            transition: opacity 0.3s ease;
+        }
+        #overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        /* Tombol start dengan warna gelap kontras */
+        #startBtn {
+            padding: 18px 52px;
+            font-size: 20px;
+            font-weight: 600;
+            background: #1a1a1a;
+            color: #ffffff;
+            border: none;
+            border-radius: 999px;
+            cursor: pointer;
+            transition: transform 0.15s ease, box-shadow 0.2s ease;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+            letter-spacing: 0.5px;
+        }
+        #startBtn:active {
+            transform: scale(0.96);
+        }
+        #startBtn:hover {
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+        }
+
+        #statusMsg {
+            display: none; /* tidak digunakan */
+        }
+
+        /* HUD tetap sama */
+        #hud {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 20;
+            display: none;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 18px;
+            background: linear-gradient(180deg, rgba(0, 0, 0, 0.7), transparent);
+            pointer-events: none;
+        }
+        #hud-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        #hud-left span {
+            color: #fff;
+            font-size: 13px;
+            opacity: 0.85;
+            text-shadow: 0 1px 8px rgba(0, 0, 0, 0.6);
+        }
+        #hud-left .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #22d3ee;
+            display: inline-block;
+            animation: pulse-dot 1.4s ease-in-out infinite;
+        }
+        @keyframes pulse-dot {
+            0%,
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+            50% {
+                opacity: 0.3;
+                transform: scale(0.7);
+            }
+        }
+        #detectedList {
+            pointer-events: auto;
+            font-size: 11px;
+            color: #b0d4dd;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 4px 12px;
+            border-radius: 999px;
+            backdrop-filter: blur(4px);
+            border: 1px solid rgba(34, 211, 238, 0.15);
+            max-width: 160px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        #stopBtn {
+            pointer-events: auto;
+            padding: 8px 18px;
+            font-size: 13px;
+            font-weight: 600;
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            border-radius: 999px;
+            cursor: pointer;
+            backdrop-filter: blur(6px);
+            transition: background 0.2s;
+        }
+        #stopBtn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        @media (max-width: 480px) {
+            #startBtn {
+                padding: 16px 36px;
+                font-size: 18px;
+            }
+            #hud-left span {
+                font-size: 11px;
+            }
+            #detectedList {
+                max-width: 100px;
+                font-size: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Overlay putih bersih, hanya tombol -->
+    <div id="overlay">
+        <button id="startBtn">🚀 Mulai AR</button>
+    </div>
+
+    <!-- HUD -->
+    <div id="hud">
+        <div id="hud-left">
+            <span class="dot"></span>
+            <span id="hudStatus">Mencari target…</span>
+        </div>
+        <span id="detectedList">—</span>
+        <button id="stopBtn">✕ Stop</button>
+    </div>
+
+    <!-- Container AR -->
+    <div id="container"></div>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+        import { MindARThree } from 'mindar-image-three';
+
+        // ─── KONFIGURASI PLANET ──────────────────────────────────────────
+        const PLANET_CONFIGS = [{
+            id: 'matahari',
+            label: '☀️ Matahari',
+            mindFile: './targets/matahari.mind',
+            glbFile: './models/matahari.glb',
+            scale: 0.35,
+            rotSpeed: 0.001,
+        }, {
+            id: 'merkurius',
+            label: '☿ Merkurius',
+            mindFile: './targets/merkurius.mind',
+            glbFile: './models/merkurius.glb',
+            scale: 0.14,
+            rotSpeed: 0.006,
+        }, {
+            id: 'venus',
+            label: '♀ Venus',
+            mindFile: './targets/venus.mind',
+            glbFile: './models/venus.glb',
+            scale: 0.18,
+            rotSpeed: 0.002,
+        }, {
+            id: 'bumi',
+            label: '🌍 Bumi',
+            mindFile: './targets/bumi.mind',
+            glbFile: './models/bumi.glb',
+            scale: 0.20,
+            rotSpeed: 0.004,
+        }, {
+            id: 'mars',
+            label: '♂ Mars',
+            mindFile: './targets/mars.mind',
+            glbFile: './models/mars.glb',
+            scale: 0.16,
+            rotSpeed: 0.005,
+        }, {
+            id: 'jupiter',
+            label: '♃ Jupiter',
+            mindFile: './targets/jupiter.mind',
+            glbFile: './models/jupiter.glb',
+            scale: 0.45,
+            rotSpeed: 0.008,
+        }, {
+            id: 'saturnus',
+            label: '♄ Saturnus',
+            mindFile: './targets/saturnus.mind',
+            glbFile: './models/saturnus.glb',
+            scale: 0.40,
+            rotSpeed: 0.007,
+        }, {
+            id: 'uranus',
+            label: '⛢ Uranus',
+            mindFile: './targets/uranus.mind',
+            glbFile: './models/uranus.glb',
+            scale: 0.30,
+            rotSpeed: 0.005,
+        }, {
+            id: 'neptunus',
+            label: '♆ Neptunus',
+            mindFile: './targets/neptunus.mind',
+            glbFile: './models/neptunus.glb',
+            scale: 0.28,
+            rotSpeed: 0.005,
+        }, ];
+
+        // ─── DOM refs ────────────────────────────────────────────────────
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const overlay = document.getElementById('overlay');
+        const hud = document.getElementById('hud');
+        const container = document.getElementById('container');
+        const hudStatus = document.getElementById('hudStatus');
+        const detectedList = document.getElementById('detectedList');
+
+        let mindarThree = null;
+        let fitRAF = null;
+        let planetModels = {};
+        let detectedTargets = new Set();
+        let isRunning = false;
+
+        // ─── Helper: fit contain ────────────────────────────────────────
+        function applyContainFit() {
+            const video = container.querySelector('video');
+            const canvas = container.querySelector('canvas');
+            if (!video || !canvas || !video.videoWidth) return false;
+
+            const cw = container.clientWidth;
+            const ch = container.clientHeight;
+            const videoRatio = video.videoWidth / video.videoHeight;
+            const containerRatio = cw / ch;
+
+            let w, h;
+            if (videoRatio > containerRatio) {
+                w = cw;
+                h = cw / videoRatio;
+            } else {
+                h = ch;
+                w = ch * videoRatio;
+            }
+            const left = (cw - w) / 2;
+            const top = (ch - h) / 2;
+
+            [video, canvas].forEach((el) => {
+                el.style.width = `${w}px`;
+                el.style.height = `${h}px`;
+                el.style.left = `${left}px`;
+                el.style.top = `${top}px`;
+            });
+            return true;
+        }
+
+        function waitAndFit() {
+            if (!applyContainFit()) {
+                fitRAF = requestAnimationFrame(waitAndFit);
+            }
+        }
+
+        function onWindowResize() {
+            applyContainFit();
+        }
+
+        // ─── Update HUD ──────────────────────────────────────────────────
+        function updateHUD() {
+            const count = detectedTargets.size;
+            if (count === 0) {
+                hudStatus.textContent = '🔍 Mencari target…';
+                detectedList.textContent = '—';
+            } else {
+                hudStatus.textContent = `✅ ${count} target terdeteksi`;
+                const names = Array.from(detectedTargets)
+                    .map(id => PLANET_CONFIGS.find(p => p.id === id)?.label || id)
+                    .join(', ');
+                detectedList.textContent = names;
+            }
+        }
+
+        // ─── Start AR ──────────────────────────────────────────────────
+        async function startAR() {
+            if (isRunning) return;
+            isRunning = true;
+
+            try {
+                // Tidak ada status message, langsung proses
+                const imageTargets = PLANET_CONFIGS.map(p => ({
+                    url: p.mindFile,
+                    targetName: p.id,
+                }));
+
+                mindarThree = new MindARThree({
+                    container,
+                    imageTargets,
+                });
+
+                const { renderer, scene, camera } = mindarThree;
+
+                // Lighting
+                const hemiLight = new THREE.HemisphereLight(0x87ceeb, 0x3a3a3a, 1.6);
+                scene.add(hemiLight);
+                const dirLight = new THREE.DirectionalLight(0xffffff, 1.8);
+                dirLight.position.set(2, 3, 2);
+                scene.add(dirLight);
+                const fillLight = new THREE.DirectionalLight(0xaaccff, 0.5);
+                fillLight.position.set(-1, 0.5, -1);
+                scene.add(fillLight);
+
+                const loader = new GLTFLoader();
+
+                const loadPromises = PLANET_CONFIGS.map(async (config) => {
+                    try {
+                        const anchor = mindarThree.addAnchor(config.id);
+                        const gltf = await loader.loadAsync(config.glbFile);
+                        const model = gltf.scene;
+                        model.scale.set(config.scale, config.scale, config.scale);
+                        model.rotation.y = Math.random() * Math.PI * 2;
+                        anchor.group.add(model);
+
+                        planetModels[config.id] = {
+                            mesh: model,
+                            rotSpeed: config.rotSpeed,
+                            label: config.label,
+                            anchor: anchor,
+                        };
+                        console.log(`✅ ${config.id} loaded`);
+                    } catch (err) {
+                        console.error(`❌ Gagal load ${config.id}:`, err);
+                        // Fallback sphere
+                        try {
+                            const anchor = mindarThree.addAnchor(config.id);
+                            const geo = new THREE.SphereGeometry(config.scale * 0.8, 24, 24);
+                            const mat = new THREE.MeshStandardMaterial({
+                                color: 0x888888,
+                                roughness: 0.6,
+                                metalness: 0.1,
+                            });
+                            const fallback = new THREE.Mesh(geo, mat);
+                            anchor.group.add(fallback);
+                            planetModels[config.id] = {
+                                mesh: fallback,
+                                rotSpeed: 0.003,
+                                label: config.label + ' (fallback)',
+                                anchor: anchor,
+                                isFallback: true,
+                            };
+                            console.warn(`⚠️ Fallback untuk ${config.id}`);
+                        } catch (_) { /* ignore */ }
+                    }
+                });
+
+                await Promise.allSettled(loadPromises);
+
+                // Sembunyikan overlay, tampilkan AR
+                overlay.classList.add('hidden');
+                container.style.display = 'block';
+                hud.style.display = 'flex';
+
+                await mindarThree.start();
+
+                waitAndFit();
+                window.addEventListener('resize', onWindowResize);
+
+                let frameCount = 0;
+                renderer.setAnimationLoop(() => {
+                    frameCount++;
+
+                    for (const [id, data] of Object.entries(planetModels)) {
+                        if (data.mesh) {
+                            data.mesh.rotation.y += data.rotSpeed || 0.003;
+                        }
+                    }
+
+                    if (frameCount % 30 === 0) {
+                        const newDetected = new Set();
+                        for (const [id, data] of Object.entries(planetModels)) {
+                            const anchor = data.anchor;
+                            if (anchor && anchor.group && anchor.group.visible) {
+                                let hasVisible = false;
+                                for (const child of anchor.group.children) {
+                                    if (child.visible) {
+                                        hasVisible = true;
+                                        break;
+                                    }
+                                }
+                                if (hasVisible) newDetected.add(id);
+                            }
+                        }
+                        const changed = detectedTargets.size !== newDetected.size ||
+                            ![...detectedTargets].every(id => newDetected.has(id));
+                        if (changed) {
+                            detectedTargets = newDetected;
+                            updateHUD();
+                        }
+                    }
+
+                    renderer.render(scene, camera);
+                });
+
+                updateHUD();
+
+            } catch (err) {
+                console.error(err);
+                // Jika gagal, tampilkan overlay kembali dengan pesan error (opsional)
+                overlay.classList.remove('hidden');
+                // Tampilkan pesan error sederhana dengan alert atau bisa ditambahkan elemen
+                alert('Gagal mengakses kamera. Pastikan menggunakan HTTPS dan izin kamera diberikan.');
+                isRunning = false;
+            }
+        }
+
+        // ─── Stop AR ────────────────────────────────────────────────────
+        async function stopAR() {
+            isRunning = false;
+            window.removeEventListener('resize', onWindowResize);
+            if (fitRAF) cancelAnimationFrame(fitRAF);
+
+            if (mindarThree) {
+                try {
+                    await mindarThree.stop();
+                } catch (_) { /* ignore */ }
+                if (mindarThree.renderer) {
+                    mindarThree.renderer.setAnimationLoop(null);
+                }
+            }
+
+            planetModels = {};
+            detectedTargets.clear();
+
+            container.style.display = 'none';
+            hud.style.display = 'none';
+            overlay.classList.remove('hidden');
+            hudStatus.textContent = '—';
+            detectedList.textContent = '—';
+
+            mindarThree = null;
+        }
+
+        // ─── Event listeners ────────────────────────────────────────────
+        startBtn.addEventListener('click', startAR);
+        stopBtn.addEventListener('click', stopAR);
+
+        window.addEventListener('beforeunload', async () => {
+            if (mindarThree) {
+                try { await mindarThree.stop(); } catch (_) {}
+            }
+        });
+
+        // ─── Initial log ────────────────────────────────────────────────
+        console.log('🪐 AR 9 Planet siap (mode minimal)');
+        console.log(`📦 ${PLANET_CONFIGS.length} target dikonfigurasi.`);
+    </script>
+</body>
+</html>
