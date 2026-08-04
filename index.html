@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>HAJAR - Tata Surya</title>
+    <!-- Font Awesome 6 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
+    <style>
+        /* ========== RESET & GLOBAL ========== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: #f0f2f8;
+            color: #1e293b;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* ========== SPLASH SCREEN ========== */
+        #splash {
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            background: #ffffff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.6s ease, transform 0.6s ease;
+        }
+        #splash.hide {
+            opacity: 0;
+            transform: scale(1.1);
+            pointer-events: none;
+        }
+
+        .splash-icon {
+            width: 100px;
+            height: 100px;
+            background: #f39c12;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 8px 30px rgba(243, 156, 18, 0.25);
+            margin-bottom: 24px;
+            animation: pulse 1.8s ease-in-out infinite;
+        }
+        .splash-icon i {
+            font-size: 48px;
+            color: #1e293b;
+        }
+
+        @keyframes pulse {
+            0%,
+            100% {
+                transform: scale(1);
+                box-shadow: 0 8px 30px rgba(243, 156, 18, 0.25);
+            }
+            50% {
+                transform: scale(1.05);
+                box-shadow: 0 12px 50px rgba(243, 156, 18, 0.4);
+            }
+        }
+
+        .splash-title {
+            font-size: 40px;
+            font-weight: 800;
+            letter-spacing: 6px;
+            color: #f39c12;
+            margin-bottom: 6px;
+        }
+        .splash-sub {
+            font-size: 14px;
+            color: rgba(30, 41, 59, 0.5);
+            letter-spacing: 4px;
+            font-weight: 300;
+            text-transform: uppercase;
+        }
+        .splash-loader {
+            margin-top: 32px;
+            width: 50px;
+            height: 3px;
+            background: rgba(30, 41, 59, 0.08);
+            border-radius: 4px;
+            overflow: hidden;
+            position: relative;
+        }
+        .splash-loader::after {
+            content: '';
+            position: absolute;
+            left: -100%;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: #f39c12;
+            border-radius: 4px;
+            animation: loadbar 1.8s ease-in-out forwards;
+        }
+        @keyframes loadbar {
+            0% {
+                left: -100%;
+                width: 100%;
+            }
+            100% {
+                left: 100%;
+                width: 100%;
+            }
+        }
+
+        /* ========== MAIN APP ========== */
+        #app {
+            max-width: 480px;
+            margin: 0 auto;
+            padding: 0 16px 30px;
+            opacity: 0;
+            transform: translateY(12px);
+            transition: opacity 0.5s ease, transform 0.5s ease;
+        }
+        #app.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Header */
+        .app-header {
+            text-align: center;
+            padding: 30px 0 20px;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+            margin-bottom: 20px;
+        }
+        .app-header h1 {
+            font-size: 28px;
+            font-weight: 800;
+            letter-spacing: 2px;
+            color: #f39c12;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .app-header h1 i {
+            font-size: 26px;
+            color: #f39c12;
+        }
+        .app-header p {
+            color: rgba(30, 41, 59, 0.4);
+            font-size: 13px;
+            letter-spacing: 1px;
+            margin-top: 4px;
+            font-weight: 400;
+        }
+
+        /* ========== PLANET LIST ========== */
+        .planet-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-top: 6px;
+        }
+
+        .planet-card {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            background: #ffffff;
+            border: 1px solid rgba(0, 0, 0, 0.04);
+            border-radius: 16px;
+            padding: 14px 18px;
+            transition: all 0.2s ease;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+        }
+        .planet-card:active {
+            transform: scale(0.97);
+            background: #f8faff;
+            border-color: rgba(243, 156, 18, 0.2);
+        }
+
+        .planet-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            color: #fff;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+            transition: transform 0.25s ease;
+        }
+        .planet-card:active .planet-icon {
+            transform: scale(0.92);
+        }
+
+        /* Warna solid */
+        .icon-matahari {
+            background: #f39c12;
+        }
+        .icon-merkurius {
+            background: #95a5a6;
+        }
+        .icon-venus {
+            background: #d4a574;
+        }
+        .icon-bumi {
+            background: #2e86c1;
+        }
+        .icon-mars {
+            background: #c0392b;
+        }
+
+        .planet-info {
+            flex: 1;
+            min-width: 0;
+        }
+        .planet-name {
+            font-size: 17px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #1e293b;
+        }
+        .planet-name .badge {
+            font-size: 9px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 2px 10px;
+            border-radius: 20px;
+            background: rgba(0, 0, 0, 0.04);
+            color: rgba(30, 41, 59, 0.45);
+            border: 1px solid rgba(0, 0, 0, 0.04);
+        }
+        .planet-desc {
+            font-size: 13px;
+            color: rgba(30, 41, 59, 0.55);
+            margin-top: 2px;
+            font-weight: 300;
+        }
+        .planet-order {
+            font-size: 12px;
+            font-weight: 400;
+            color: rgba(30, 41, 59, 0.25);
+            background: rgba(0, 0, 0, 0.02);
+            padding: 3px 12px;
+            border-radius: 30px;
+            border: 1px solid rgba(0, 0, 0, 0.04);
+            flex-shrink: 0;
+        }
+
+        /* ========== FAKTA HARIAN ========== */
+        .fakta-section {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(0, 0, 0, 0.04);
+        }
+
+        .fakta-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+        .fakta-header h2 {
+            font-size: 16px;
+            font-weight: 700;
+            color: #1e293b;
+            letter-spacing: 0.5px;
+        }
+        .fakta-header h2 i {
+            color: #f39c12;
+            margin-right: 6px;
+        }
+        .fakta-header .badge-hari {
+            font-size: 10px;
+            font-weight: 600;
+            background: rgba(243, 156, 18, 0.12);
+            color: #f39c12;
+            padding: 2px 12px;
+            border-radius: 20px;
+            margin-left: auto;
+        }
+
+        .fakta-card {
+            background: #ffffff;
+            border-radius: 16px;
+            padding: 20px 20px 18px;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.02);
+            border: 1px solid rgba(0, 0, 0, 0.04);
+            position: relative;
+            min-height: 100px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .fakta-card .fakta-number {
+            font-size: 11px;
+            font-weight: 600;
+            color: rgba(30, 41, 59, 0.2);
+            letter-spacing: 1px;
+            margin-bottom: 6px;
+        }
+
+        .fakta-card .fakta-text {
+            font-size: 15px;
+            line-height: 1.6;
+            color: #1e293b;
+            flex: 1;
+        }
+
+        .fakta-card .fakta-text i {
+            color: #f39c12;
+            margin-right: 6px;
+        }
+
+        .fakta-card .fakta-source {
+            font-size: 11px;
+            color: rgba(30, 41, 59, 0.3);
+            margin-top: 12px;
+            text-align: right;
+            font-style: italic;
+        }
+
+        /* Navigasi fakta */
+        .fakta-nav {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 14px;
+            margin-top: 14px;
+        }
+
+        .fakta-nav button {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            border: 1px solid rgba(0, 0, 0, 0.06);
+            background: #ffffff;
+            color: #94a3b8;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.02);
+        }
+        .fakta-nav button:active {
+            transform: scale(0.92);
+            background: #f8faff;
+            border-color: rgba(243, 156, 18, 0.3);
+            color: #f39c12;
+        }
+        .fakta-nav button:hover {
+            border-color: rgba(243, 156, 18, 0.2);
+            color: #f39c12;
+        }
+
+        .fakta-dots {
+            display: flex;
+            gap: 6px;
+        }
+        .fakta-dots .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: rgba(0, 0, 0, 0.08);
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        .fakta-dots .dot.active {
+            background: #f39c12;
+            width: 22px;
+            border-radius: 6px;
+        }
+        .fakta-dots .dot:active {
+            transform: scale(0.8);
+        }
+
+        .fakta-counter {
+            font-size: 11px;
+            color: rgba(30, 41, 59, 0.25);
+            font-weight: 500;
+            letter-spacing: 0.5px;
+            min-width: 44px;
+            text-align: center;
+        }
+
+        /* ========== FOOTER ========== */
+        .app-footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(0, 0, 0, 0.04);
+            text-align: center;
+            color: rgba(30, 41, 59, 0.3);
+            font-size: 12px;
+            letter-spacing: 1px;
+        }
+        .app-footer span {
+            color: #f39c12;
+        }
+        .app-footer .version {
+            display: inline-block;
+            background: rgba(243, 156, 18, 0.08);
+            color: #f39c12;
+            padding: 2px 12px;
+            border-radius: 30px;
+            font-size: 11px;
+            margin-top: 8px;
+        }
+
+        /* ========== RESPONSIVE ========== */
+        @media (max-width: 480px) {
+            .app-header h1 {
+                font-size: 24px;
+            }
+            .planet-card {
+                padding: 12px 14px;
+                gap: 14px;
+            }
+            .planet-icon {
+                width: 42px;
+                height: 42px;
+                font-size: 18px;
+            }
+            .planet-name {
+                font-size: 15px;
+            }
+            .planet-desc {
+                font-size: 12px;
+            }
+            .fakta-card .fakta-text {
+                font-size: 14px;
+            }
+            .fakta-nav button {
+                width: 34px;
+                height: 34px;
+                font-size: 12px;
+            }
+        }
+
+        @media (max-width: 380px) {
+            .planet-card {
+                flex-wrap: wrap;
+                gap: 10px;
+            }
+            .planet-order {
+                margin-left: auto;
+            }
+            .fakta-card {
+                padding: 16px 16px 14px;
+            }
+            .fakta-card .fakta-text {
+                font-size: 13px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ====== SPLASH SCREEN ====== -->
+    <div id="splash">
+        <div class="splash-icon"><i class="fas fa-sun"></i></div>
+        <div class="splash-title">HAJAR</div>
+        <div class="splash-sub">Tata Surya</div>
+        <div class="splash-loader"></div>
+    </div>
+
+    <!-- ====== MAIN APP ====== -->
+    <div id="app">
+        <!-- Header -->
+        <header class="app-header">
+            <h1><i class="fas fa-sun"></i> HAJAR</h1>
+            <p>Jelajahi Tata Surya</p>
+        </header>
+
+        <!-- Daftar Planet -->
+        <div class="planet-list" id="planetList"></div>
+
+        <!-- ===== FAKTA HARIAN ===== -->
+        <div class="fakta-section">
+            <div class="fakta-header">
+                <h2><i class="fas fa-star"></i> Fakta Harian</h2>
+                <span class="badge-hari"><i class="far fa-calendar-alt"></i> Hari ini</span>
+            </div>
+
+            <div class="fakta-card" id="faktaCard">
+                <div class="fakta-number" id="faktaNumber">#1</div>
+                <div class="fakta-text" id="faktaText">
+                    <i class="fas fa-quote-left" style="opacity:0.3;font-size:12px;"></i>
+                    Memuat fakta...
+                </div>
+                <div class="fakta-source" id="faktaSource">— Sumber</div>
+            </div>
+
+            <div class="fakta-nav">
+                <button id="faktaPrev" aria-label="Fakta sebelumnya">
+                    <i class="fas fa-chevron-left"></i>
+                </button>
+                <div class="fakta-dots" id="faktaDots"></div>
+                <button id="faktaNext" aria-label="Fakta selanjutnya">
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="app-footer">
+            <div>5 benda langit utama</div>
+            <div style="margin-top:4px;">dari Matahari hingga Mars</div>
+            <div class="version">versi 1.0.0</div>
+        </div>
+    </div>
+
+    <script>
+        // =============================================
+        // DATA PLANET
+        // =============================================
+        const planets = [{
+            id: 'matahari',
+            name: 'Matahari',
+            icon: 'fas fa-sun',
+            desc: 'Bintang pusat tata surya',
+            order: '⭐ Pusat',
+            iconClass: 'icon-matahari'
+        }, {
+            id: 'merkurius',
+            name: 'Merkurius',
+            icon: 'fas fa-circle',
+            desc: 'Planet terkecil & terdekat',
+            order: '#1',
+            iconClass: 'icon-merkurius'
+        }, {
+            id: 'venus',
+            name: 'Venus',
+            icon: 'fas fa-venus',
+            desc: 'Planet terpanas',
+            order: '#2',
+            iconClass: 'icon-venus'
+        }, {
+            id: 'bumi',
+            name: 'Bumi',
+            icon: 'fas fa-globe-asia',
+            desc: 'Rumah kita',
+            order: '#3',
+            iconClass: 'icon-bumi'
+        }, {
+            id: 'mars',
+            name: 'Mars',
+            icon: 'fas fa-mars',
+            desc: 'Planet Merah',
+            order: '#4',
+            iconClass: 'icon-mars'
+        }];
+
+        // =============================================
+        // DATA FAKTA
+        // =============================================
+        const facts = [{
+            text: 'Matahari menyumbang <strong>99,86%</strong> dari total massa seluruh tata surya!',
+            source: 'NASA Solar System'
+        }, {
+            text: 'Merkurius adalah planet terkecil, diameternya hanya <strong>4.879 km</strong> — lebih kecil dari bulan Jupiter, Ganymede.',
+            source: 'Space Facts'
+        }, {
+            text: 'Venus adalah planet terpanas dengan suhu rata-rata <strong>462°C</strong>, bahkan lebih panas dari Merkurius!',
+            source: 'ESA Science'
+        }, {
+            text: 'Bumi adalah satu-satunya planet yang diketahui memiliki <strong>kehidupan</strong> dan air dalam bentuk cair di permukaannya.',
+            source: 'NASA Earth'
+        }, {
+            text: 'Mars memiliki gunung tertinggi di tata surya, <strong>Olympus Mons</strong>, setinggi 21,9 km — 2,5x lebih tinggi dari Everest!',
+            source: 'Mars Exploration'
+        }, {
+            text: 'Jupiter adalah planet terbesar dengan diameter <strong>139.820 km</strong> — bisa menampung lebih dari 1.300 Bumi di dalamnya.',
+            source: 'NASA Jupiter'
+        }, {
+            text: 'Saturnus memiliki cincin yang terdiri dari <strong>miliaran partikel es dan batuan</strong>, dengan lebar mencapai 280.000 km.',
+            source: 'Saturn Science'
+        }, {
+            text: 'Uranus berputar miring dengan kemiringan sumbu <strong>98°</strong>, hampir seperti planet yang berguling mengelilingi Matahari.',
+            source: 'Uranus Facts'
+        }, {
+            text: 'Neptunus adalah planet terjauh dan memiliki angin tercepat, mencapai kecepatan <strong>2.100 km/jam</strong>!',
+            source: 'Neptune Facts'
+        }];
+
+        // =============================================
+        // RENDER PLANET
+        // =============================================
+        const container = document.getElementById('planetList');
+
+        planets.forEach(p => {
+            const card = document.createElement('div');
+            card.className = 'planet-card';
+            card.innerHTML = `
+                <div class="planet-icon ${p.iconClass}"><i class="${p.icon}"></i></div>
+                <div class="planet-info">
+                    <div class="planet-name">
+                        ${p.name}
+                        <span class="badge">${p.id === 'matahari' ? 'Bintang' : 'Planet'}</span>
+                    </div>
+                    <div class="planet-desc">${p.desc}</div>
+                </div>
+                <div class="planet-order">${p.order}</div>
+            `;
+            card.addEventListener('click', () => {
+                if (navigator.vibrate) navigator.vibrate(10);
+            });
+            container.appendChild(card);
+        });
+
+        // =============================================
+        // FAKTA HARIAN — SLIDER
+        // =============================================
+        let currentFact = 0;
+        const totalFacts = facts.length;
+        const faktaText = document.getElementById('faktaText');
+        const faktaNumber = document.getElementById('faktaNumber');
+        const faktaSource = document.getElementById('faktaSource');
+        const dotsContainer = document.getElementById('faktaDots');
+        const prevBtn = document.getElementById('faktaPrev');
+        const nextBtn = document.getElementById('faktaNext');
+
+        // Buat dots
+        facts.forEach((_, i) => {
+            const dot = document.createElement('span');
+            dot.className = 'dot' + (i === 0 ? ' active' : '');
+            dot.dataset.index = i;
+            dot.addEventListener('click', () => goToFact(i));
+            dotsContainer.appendChild(dot);
+        });
+
+        function goToFact(index) {
+            currentFact = (index + totalFacts) % totalFacts;
+            const fact = facts[currentFact];
+
+            faktaNumber.textContent = `#${currentFact + 1}`;
+            faktaText.innerHTML = `<i class="fas fa-quote-left" style="opacity:0.3;font-size:12px;"></i> ${fact.text}`;
+            faktaSource.textContent = `— ${fact.source}`;
+
+            // Update dots
+            document.querySelectorAll('.dot').forEach((dot, i) => {
+                dot.classList.toggle('active', i === currentFact);
+            });
+        }
+
+        function nextFact() {
+            goToFact(currentFact + 1);
+        }
+
+        function prevFact() {
+            goToFact(currentFact - 1);
+        }
+
+        prevBtn.addEventListener('click', prevFact);
+        nextBtn.addEventListener('click', nextFact);
+
+        // Keyboard support
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft') prevFact();
+            if (e.key === 'ArrowRight') nextFact();
+        });
+
+        // Touch swipe support
+        let touchStartX = 0;
+        let touchEndX = 0;
+        const card = document.getElementById('faktaCard');
+        card.addEventListener('touchstart', (e) => {
+            touchStartX = e.changedTouches[0].screenX;
+        }, { passive: true });
+        card.addEventListener('touchend', (e) => {
+            touchEndX = e.changedTouches[0].screenX;
+            const diff = touchStartX - touchEndX;
+            if (Math.abs(diff) > 40) {
+                if (diff > 0) nextFact();
+                else prevFact();
+            }
+        }, { passive: true });
+
+        // Auto-slide (berhenti saat interaksi)
+        let autoSlideInterval;
+
+        function startAutoSlide() {
+            stopAutoSlide();
+            autoSlideInterval = setInterval(nextFact, 6000);
+        }
+
+        function stopAutoSlide() {
+            if (autoSlideInterval) {
+                clearInterval(autoSlideInterval);
+                autoSlideInterval = null;
+            }
+        }
+
+        // Reset timer saat interaksi manual
+        [prevBtn, nextBtn, ...document.querySelectorAll('.dot')].forEach(el => {
+            el.addEventListener('click', () => {
+                stopAutoSlide();
+                setTimeout(startAutoSlide, 8000);
+            });
+        });
+
+        // Muat fakta pertama dan mulai auto-slide
+        goToFact(0);
+        setTimeout(startAutoSlide, 2000);
+
+        // =============================================
+        // SPLASH SCREEN
+        // =============================================
+        const splash = document.getElementById('splash');
+        const app = document.getElementById('app');
+        const minSplashTime = 1800;
+        const startTime = Date.now();
+
+        function showApp() {
+            const elapsed = Date.now() - startTime;
+            const delay = Math.max(0, minSplashTime - elapsed);
+            setTimeout(() => {
+                splash.classList.add('hide');
+                app.classList.add('visible');
+                setTimeout(() => splash.style.display = 'none', 700);
+            }, delay);
+        }
+
+        if (document.readyState === 'complete') showApp();
+        else window.addEventListener('load', showApp);
+
+        setTimeout(() => {
+            if (!splash.classList.contains('hide')) {
+                splash.classList.add('hide');
+                app.classList.add('visible');
+                setTimeout(() => splash.style.display = 'none', 700);
+            }
+        }, 3500);
+    </script>
+
+</body>
+</html>
